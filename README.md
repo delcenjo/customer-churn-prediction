@@ -1,5 +1,7 @@
 # Customer Churn Prediction
 
+![CI](https://github.com/delcenjo/customer-churn-prediction/actions/workflows/ci.yml/badge.svg)
+
 End-to-end machine learning pipeline that predicts which telecom customers are
 likely to churn, so retention efforts can be focused where they matter most.
 
