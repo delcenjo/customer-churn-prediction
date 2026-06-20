@@ -61,7 +61,38 @@ pytest                              # run the tests
 
 ## Results
 
-_Populated by `python -m churn.train`; see [reports/metrics.json](reports/metrics.json)._
+Five-fold cross-validated ROC-AUC on the training set:
+
+| Model               | CV ROC-AUC      |
+| ------------------- | --------------- |
+| Logistic regression | 0.845 ± 0.014   |
+| Gradient boosting   | 0.833 ± 0.011   |
+| Random forest       | 0.825 ± 0.013   |
+
+The logistic regression generalises best and is retrained on the full training
+split. On the held-out test set (1,409 customers):
+
+| Metric    | Score |
+| --------- | ----- |
+| ROC-AUC   | 0.842 |
+| Accuracy  | 0.738 |
+| Precision | 0.504 |
+| Recall    | 0.783 |
+| F1        | 0.614 |
+
+With balanced class weights the model is tuned towards **recall**: it flags ~78%
+of customers who actually churn, accepting lower precision. That trade-off is the
+right one when a missed churner costs far more than an unnecessary retention offer.
+
+| Exploratory analysis | Model evaluation |
+| --- | --- |
+| ![Churn rate by contract](reports/figures/churn_by_contract.png) | ![ROC curve](reports/figures/roc_curve.png) |
+| ![Tenure by churn](reports/figures/tenure_by_churn.png) | ![Feature importance](reports/figures/feature_importance.png) |
+
+**Key drivers of churn:** month-to-month contracts, short tenure and high monthly
+charges. Customers on long contracts churn far less, which points to contract
+length as the most actionable retention lever. Full metrics in
+[reports/metrics.json](reports/metrics.json).
 
 ## Possible improvements
 
