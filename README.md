@@ -3,41 +3,106 @@
 ![CI](https://github.com/delcenjo/customer-churn-prediction/actions/workflows/ci.yml/badge.svg)
 [![Kaggle notebook](https://img.shields.io/badge/Kaggle-Notebook-20BEFF?logo=kaggle&logoColor=white)](https://www.kaggle.com/code/delcenjo/telco-customer-churn-ml)
 
-End-to-end machine learning pipeline that predicts which telecom customers are
-likely to churn, so retention efforts can be focused where they matter most.
+Keeping an existing telecom customer is much cheaper than winning a new one, so
+the useful question for a retention team is not "who left last month" but "who is
+about to leave". This project builds a model that scores each customer by their
+probability of churning, so the people running retention campaigns can spend
+their budget on the accounts most at risk instead of contacting everyone.
 
-> **Interactive version:** the same EDA and model comparison is available as a
-> runnable [Kaggle notebook](https://www.kaggle.com/code/delcenjo/telco-customer-churn-ml).
+Churn is a minority event here (roughly 26% of customers), and that shapes the
+whole evaluation. Plain accuracy is misleading on imbalanced data: a model that
+predicts "nobody churns" would already be right about three quarters of the time
+and be completely useless. So the models are compared on ROC-AUC, which measures
+how well they rank a churner above a non-churner regardless of where you set the
+decision threshold.
 
-The project covers the full workflow: data cleaning, exploratory analysis,
-a reusable preprocessing pipeline, model comparison with cross-validation, and
-evaluation on a held-out test set.
+## The data
 
-## Problem
+The Telco Customer Churn dataset: 7,043 customers described by 21 columns
+covering demographics, the services they subscribe to, their contract type and
+their billing. The raw CSV is not committed to the repo. Download it with
+`python scripts/download_data.py` (details in [data/README.md](data/README.md)).
 
-Customer acquisition is far more expensive than retention. Given a customer's
-contract, services and billing profile, the goal is to estimate the probability
-of churn and identify the factors that drive it. The target is imbalanced
-(~26% churn), so models are compared with **ROC-AUC** rather than accuracy.
+A couple of quirks worth knowing about before modelling:
 
-## Dataset
+- `TotalCharges` comes through as text and is blank for brand-new customers
+  (tenure 0). It gets coerced to a number, with those blanks filled as 0.0.
+- `customerID` is just an identifier and is dropped so the model cannot memorise it.
 
-Telco Customer Churn - 7,043 customers and 21 columns (demographics, subscribed
-services, contract and billing). The raw file is not versioned; download it with
-`python scripts/download_data.py` (see [data/README.md](data/README.md)).
+## How it works
 
-## Approach
+The cleaning logic lives in `churn.data`. From there the flow is:
 
-1. **Cleaning** - drop the identifier, coerce `TotalCharges` to numeric (blank for
-   new customers), encode the target.
-2. **Preprocessing** - a `ColumnTransformer` scales numeric features and
-   one-hot-encodes categoricals, wrapped in a `Pipeline` to prevent data leakage.
-3. **Modelling** - logistic regression (baseline), random forest and gradient
-   boosting, compared with 5-fold cross-validated ROC-AUC.
-4. **Evaluation** - the best model is refit and scored on the test set; figures
-   for the ROC curve, confusion matrix and permutation importance are generated.
+1. Numeric features (`tenure`, `MonthlyCharges`, `TotalCharges`, `SeniorCitizen`)
+   are standardised and everything else is one-hot encoded. This happens inside a
+   `ColumnTransformer` (`churn.features`) that is bundled into the same
+   scikit-learn `Pipeline` as the model, so the scaler and encoder only ever see
+   the training fold and no information leaks from the test data.
+2. Three classifiers are put up against each other with 5-fold cross-validated
+   ROC-AUC: logistic regression as the baseline, a random forest, and histogram
+   gradient boosting. The first two run with balanced class weights to counter
+   the imbalance.
+3. The best of the three is refit on the full training split and scored once on a
+   held-out test set. Figures for the ROC curve, confusion matrix and permutation
+   importance are saved alongside a `metrics.json`.
 
-## Project structure
+If you would rather read through the analysis than run it, the same EDA and model
+comparison is written up as a runnable
+[Kaggle notebook](https://www.kaggle.com/code/delcenjo/telco-customer-churn-ml).
+
+## What the numbers say
+
+Cross-validated ROC-AUC on the training set:
+
+| Model               | CV ROC-AUC      |
+| ------------------- | --------------- |
+| Logistic regression | 0.845 ± 0.014   |
+| Gradient boosting   | 0.833 ± 0.011   |
+| Random forest       | 0.825 ± 0.013   |
+
+The simple logistic regression comes out on top, which is a good reminder that
+the fancier model is not always the better one. It is retrained on the full
+training split and evaluated on the held-out test set (1,409 customers):
+
+| Metric    | Score |
+| --------- | ----- |
+| ROC-AUC   | 0.842 |
+| Accuracy  | 0.738 |
+| Precision | 0.504 |
+| Recall    | 0.783 |
+| F1        | 0.614 |
+
+Because of the balanced class weights, the model leans towards recall: it catches
+about 78% of the customers who really do churn, at the cost of more false alarms.
+For retention that is usually the trade you want, since missing a customer who
+walks away is far more expensive than an unnecessary "please stay" offer to one
+who was not going anywhere.
+
+| Exploratory analysis | Model evaluation |
+| --- | --- |
+| ![Churn rate by contract](reports/figures/churn_by_contract.png) | ![ROC curve](reports/figures/roc_curve.png) |
+| ![Tenure by churn](reports/figures/tenure_by_churn.png) | ![Feature importance](reports/figures/feature_importance.png) |
+
+The figures point at the same story: churn concentrates among customers on
+month-to-month contracts, with short tenure and high monthly charges. People on
+one- and two-year contracts churn far less, which makes contract length the most
+actionable lever a retention team actually has. Full numbers are in
+[reports/metrics.json](reports/metrics.json).
+
+## Running it yourself
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+
+python scripts/download_data.py     # fetch the dataset
+python -m churn.eda                 # exploratory figures
+python -m churn.train               # compare models, train and persist the best
+python -m churn.evaluate            # evaluation figures
+pytest                              # run the tests
+```
+
+## Where things live
 
 ```
 src/churn/
@@ -52,56 +117,6 @@ scripts/         dataset download
 reports/         metrics and figures
 ```
 
-## Usage
-
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-
-python scripts/download_data.py     # fetch the dataset
-python -m churn.eda                 # exploratory figures
-python -m churn.train               # compare models, train and persist the best
-python -m churn.evaluate            # evaluation figures
-pytest                              # run the tests
-```
-
-## Results
-
-Five-fold cross-validated ROC-AUC on the training set:
-
-| Model               | CV ROC-AUC      |
-| ------------------- | --------------- |
-| Logistic regression | 0.845 ± 0.014   |
-| Gradient boosting   | 0.833 ± 0.011   |
-| Random forest       | 0.825 ± 0.013   |
-
-The logistic regression generalises best and is retrained on the full training
-split. On the held-out test set (1,409 customers):
-
-| Metric    | Score |
-| --------- | ----- |
-| ROC-AUC   | 0.842 |
-| Accuracy  | 0.738 |
-| Precision | 0.504 |
-| Recall    | 0.783 |
-| F1        | 0.614 |
-
-With balanced class weights the model is tuned towards **recall**: it flags ~78%
-of customers who actually churn, accepting lower precision. That trade-off is the
-right one when a missed churner costs far more than an unnecessary retention offer.
-
-| Exploratory analysis | Model evaluation |
-| --- | --- |
-| ![Churn rate by contract](reports/figures/churn_by_contract.png) | ![ROC curve](reports/figures/roc_curve.png) |
-| ![Tenure by churn](reports/figures/tenure_by_churn.png) | ![Feature importance](reports/figures/feature_importance.png) |
-
-**Key drivers of churn:** month-to-month contracts, short tenure and high monthly
-charges. Customers on long contracts churn far less, which points to contract
-length as the most actionable retention lever. Full metrics in
-[reports/metrics.json](reports/metrics.json).
-
-## Possible improvements
-
-- Threshold tuning driven by the business cost of false negatives.
-- Probability calibration and SHAP-based explanations.
-- Packaging the model behind a small inference API.
+If this were taken further, the obvious next steps would be tuning the decision
+threshold around the real cost of a missed churner and adding probability
+calibration.
