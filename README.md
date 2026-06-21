@@ -22,19 +22,19 @@ of churn and identify the factors that drive it. The target is imbalanced
 
 ## Dataset
 
-Telco Customer Churn — 7,043 customers and 21 columns (demographics, subscribed
+Telco Customer Churn - 7,043 customers and 21 columns (demographics, subscribed
 services, contract and billing). The raw file is not versioned; download it with
 `python scripts/download_data.py` (see [data/README.md](data/README.md)).
 
 ## Approach
 
-1. **Cleaning** — drop the identifier, coerce `TotalCharges` to numeric (blank for
+1. **Cleaning** - drop the identifier, coerce `TotalCharges` to numeric (blank for
    new customers), encode the target.
-2. **Preprocessing** — a `ColumnTransformer` scales numeric features and
+2. **Preprocessing** - a `ColumnTransformer` scales numeric features and
    one-hot-encodes categoricals, wrapped in a `Pipeline` to prevent data leakage.
-3. **Modelling** — logistic regression (baseline), random forest and gradient
+3. **Modelling** - logistic regression (baseline), random forest and gradient
    boosting, compared with 5-fold cross-validated ROC-AUC.
-4. **Evaluation** — the best model is refit and scored on the test set; figures
+4. **Evaluation** - the best model is refit and scored on the test set; figures
    for the ROC curve, confusion matrix and permutation importance are generated.
 
 ## Project structure
