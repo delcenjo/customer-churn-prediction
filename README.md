@@ -1,9 +1,13 @@
 # Customer Churn Prediction
 
 ![CI](https://github.com/delcenjo/customer-churn-prediction/actions/workflows/ci.yml/badge.svg)
+[![Kaggle notebook](https://img.shields.io/badge/Kaggle-Notebook-20BEFF?logo=kaggle&logoColor=white)](https://www.kaggle.com/code/delcenjo/telco-customer-churn-ml)
 
 End-to-end machine learning pipeline that predicts which telecom customers are
 likely to churn, so retention efforts can be focused where they matter most.
+
+> 📊 **Interactive version:** the same EDA and model comparison is available as a
+> runnable [Kaggle notebook](https://www.kaggle.com/code/delcenjo/telco-customer-churn-ml).
 
 The project covers the full workflow: data cleaning, exploratory analysis,
 a reusable preprocessing pipeline, model comparison with cross-validation, and
